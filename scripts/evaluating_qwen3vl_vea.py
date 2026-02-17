@@ -396,14 +396,13 @@ if __name__ == "__main__":
             "highlight_strength": args.highlight_strength,
         }
 
-    # best_layers_idxes = get_best_layers(
-    #     train_dataloader, 
-    #     model, 
-    #     processor, 
-    #     args.coco_annotations_dir,
-    #     device,
-    # )
-    best_layers_idxes = [17, 20, 24] if dataset_type == "random" else [17, 20, 10]
+    best_layers_idxes = get_best_layers(
+        train_dataloader, 
+        model, 
+        processor, 
+        args.coco_annotations_dir,
+        device,
+    )
     accuracy = evaluate(
         eval_dataloader, 
         model, 
