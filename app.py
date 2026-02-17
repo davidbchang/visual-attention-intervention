@@ -29,7 +29,7 @@ CACHE_ROOT = Path("./cache")
 CACHE_ROOT.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------
-# 1) Your 8 directories
+# 1) Data and model paths
 # -----------------------------
 IMAGES_BASE_DIR = Path("data/vsr/demo_images")
 PREDICTIONS_FILENAME = "predictions.json"
