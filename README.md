@@ -1,16 +1,10 @@
----
-title: visual-attention-intervention
-app_file: app.py
-sdk: gradio
-sdk_version: 6.5.1
----
 # Survey of Visual Attention Intervention Methods for Spatial Reasoning
 
 Implementation of three visual attention intervention methods for Qwen3-VL to investigate their enhanced capabilities for visual spatial reasoning. Methods used are from the following papers:
 
 - AdaptVis: [Why Is Spatial Reasoning Hard for VLMs? An Attention Mechanism Perspective on Focus Areas](https://arxiv.org/pdf/2503.01773).
 - VEA: [Seeing but not believing: Probing the disconnect between visual attention and answer correctness in vlms](https://arxiv.org/pdf/2510.17771).
-- CLVS: [Cross-Layer Vision Smoothing: Enhancing Visual Understanding via Sustained Focus on Key Objects in Large Vision-Language Models](https://arxiv.org/pdf/2503.01773).
+- CLVS: [Cross-Layer Vision Smoothing: Enhancing Visual Understanding via Sustained Focus on Key Objects in Large Vision-Language Models](https://arxiv.org/pdf/2509.12897).
 
 All experiments are done using the [Visual Spatial Reasoning](https://arxiv.org/pdf/2205.00363) dataset and the Qwen3-VL 2B model. Evaluations are done by scoring on the random and zeroshot dev splits from VSR. Further analysis can be done using the heatmap visualizations and the plots of text/image attention weights across layers, which are generated during the evaluation experiments.
 
@@ -153,7 +147,7 @@ python scripts/evaluating_qwen3vl_clvs.py
     --uncertainty_threshold 0.5
 ```
 
-## Citations
+## Citation
 
 ```bibtex
 @article{Liu2022VisualSR,
