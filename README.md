@@ -66,7 +66,7 @@ python scripts/evaluating_qwen3vl.py
     --dataset_type "random" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint" \
+    --model_id "model/checkpoint" \
 ```
 
 ### AdaptVis Evaluation
@@ -78,7 +78,7 @@ python scripts/evaluating_qwen3vl_adapt_vis.py
     --dataset_type "random" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint"
+    --model_id "model/checkpoint"
     --confidence_threshold 0.8 \
     --sharpen_weight 1.2 \
     --smoothen_weight 0.2
@@ -89,7 +89,7 @@ python scripts/evaluating_qwen3vl_adapt_vis.py
     --dataset_type "zeroshot" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint"
+    --model_id "model/checkpoint"
     --confidence_threshold 0.8 \
     --sharpen_weight 1.2 \
     --smoothen_weight 0.1
@@ -104,7 +104,7 @@ python scripts/evaluating_qwen3vl_vea.py
     --dataset_type "random" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint" \
+    --model_id "model/checkpoint" \
     --coco_annotations_dir "./path/to/coco/annotations" \
     --smooth_strength 0.5 \
     --highlight_strength 0.5
@@ -115,7 +115,7 @@ python scripts/evaluating_qwen3vl_vea.py
     --dataset_type "zeroshot" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint" \
+    --model_id "model/checkpoint" \
     --coco_annotations_dir "./path/to/coco/annotations" \
     --smooth_strength 0.8 \
     --highlight_strength 0.2
@@ -130,7 +130,7 @@ python scripts/evaluating_qwen3vl_clvs.py
     --dataset_type "random" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint" \
+    --model_id "model/checkpoint" \
     --smoothing 0.7 \
     --window_memory_size 0.8 \
     --uncertainty_threshold 0.5
@@ -141,7 +141,7 @@ python scripts/evaluating_qwen3vl_clvs.py
     --dataset_type "zeroshot" \
     --dataset_split "dev" \
     --vsr_data_dir "./path/to/visual-spatial-reasoning/data" \
-    --model_id "./path/to/model/checkpoint" \
+    --model_id "model/checkpoint" \
     --smoothing 0.7 \
     --window_memory_size 0.8 \
     --uncertainty_threshold 0.5
