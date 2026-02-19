@@ -22,6 +22,9 @@ from visual_attention_intervention.utils import (
     smooth_highlight_mask,
 )
 
+if Path("/data").exists():
+    os.environ.setdefault("HF_HOME", "/data/.huggingface")
+
 torch.manual_seed(42)
 set_seed(42)
 
@@ -36,10 +39,13 @@ PREDICTIONS_FILENAME = "predictions.json"
 DEMO_INDICES_RANDOM = {643, 1030, 655, 1070, 687, 818, 53, 445, 960, 961, 1090, 452, 710, 199, 968, 213, 731, 606, 112, 368, 627, 885, 375, 1017}
 DEMO_INDICES_ZEROSHOT = {10, 15, 144, 17, 21, 278, 23, 25, 28, 293, 173, 54, 62, 64, 70, 198, 199, 202, 91, 224, 98, 102, 104, 109, 241, 251}
 
-PRETRAINED_MODELS_DIR = "models/Qwen3-VL-2B-Instruct"
 MODEL_PATHS = {
     "random": "modeling/Qwen3-VL-2B-Instruct_causal-lm_freeze-vision_vsr_b4x16_2e-05_e3_random-train-7680/checkpoint-260",
     "zeroshot": "modeling/Qwen3-VL-2B-Instruct_causal-lm_freeze-vision_vsr_b8x8_2e-05_e3_zeroshot-train-3489/checkpoint-160",
+}
+MODEL_REPOS = {
+    "random": "changdb/Qwen3-VL-2B-Instruct-VSR-Random",
+    "zeroshot": "changdb/Qwen3-VL-2B-Instruct-VSR-Zeroshot",
 }
 
 HEATMAP_DIRS = {
@@ -144,22 +150,19 @@ _model_lock = threading.Lock()
 
 @lru_cache(maxsize=1)
 def get_processor():
-    return AutoProcessor.from_pretrained(PRETRAINED_MODELS_DIR)
+    return AutoProcessor.from_pretrained("Qwen/Qwen3-VL-2B-Instruct")
 
 
 @lru_cache(maxsize=2)
 def get_model(split: str):
-    """
-    Loads once per split (random/zeroshot). Subsequent calls reuse the same model object.
-    Thread-safe to avoid double-load under concurrency.
-    """
-    if split not in MODEL_PATHS:
+    if split not in MODEL_REPOS:
         raise ValueError(f"Unknown split: {split}")
 
+    # Thread-safe guard against double-loading under concurrent requests
     with _model_lock:
-        model_path = MODEL_PATHS[split]
+        repo_id = MODEL_REPOS[split]
         model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_path,
+            repo_id,
             attn_implementation="eager",
             torch_dtype=torch.float16 if torch.cuda.is_available() else None,
             device_map="auto" if torch.cuda.is_available() else None,
@@ -201,6 +204,50 @@ def cache_path_for(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     return out_dir / f"{safe_key}__{h}.jpg"
+
+
+def cache_paths_for(split: str, method: str, image_key: str, example_idx: int, params: dict[str, float]):
+    img_path = cache_path_for(split, method, image_key, example_idx, params)
+    meta_path = img_path.with_suffix(".json")
+    return img_path, meta_path
+
+
+def load_cached_result(img_path: Path, meta_path: Path):
+    if not (img_path.exists() and meta_path.exists()):
+        return None
+
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    return str(img_path), meta["decoded_output"], float(meta["confidence"])
+
+
+def save_cached_result(
+    img_path: Path, 
+    meta_path: Path, 
+    original_img, 
+    overlay_img, 
+    decoded_output: str, 
+    confidence: float, 
+    meta_extra: dict | None = None
+):
+    meta = {
+        "decoded_output": decoded_output,
+        "confidence": float(confidence),
+    }
+    if meta_extra:
+        meta.update(meta_extra)
+
+    tmp_img = img_path.with_suffix(".tmp.jpg")
+    tmp_meta = meta_path.with_suffix(".tmp.json")
+
+    save_attention_image_overlay(
+        img=original_img,
+        attn_heatmap=overlay_img,
+        output_file_path=tmp_img,
+    )
+    tmp_meta.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    tmp_img.replace(img_path)
+    tmp_meta.replace(meta_path)
 
 
 # -----------------------------
@@ -550,14 +597,17 @@ def generate_custom_heatmap_overlay(
     standard_method_confidence: float,
 ):
     # 1) Disk cache check
-    out_path = cache_path_for(split, method, image_key, example_idx, params)
-    if out_path.exists():
-        return str(out_path)
+    img_path, meta_path = cache_paths_for(split, method, image_key, example_idx, params)
+
+    cached = load_cached_result(img_path, meta_path)
+    if cached is not None:
+        return cached
 
     with _generate_lock:
         # Re-check after acquiring lock (double-checked locking)
-        if out_path.exists():
-            return str(out_path)
+        cached = load_cached_result(img_path, meta_path)
+        if cached is not None:
+            return cached
 
         model = get_model(split)
         processor = get_processor()
@@ -624,20 +674,28 @@ def generate_custom_heatmap_overlay(
             interpolation=cv2.INTER_CUBIC,
         )
 
-        save_attention_image_overlay(
-            img=image,
-            attn_heatmap=rescaled_avg_attn_weights,
-            output_file_path=out_path,
-        )
-
         prompt_len = encodings["input_ids"].shape[1]
         new_tokens = model_outputs.sequences[first_output_token_idx][prompt_len:]
         decoded_outputs = processor.tokenizer.batch_decode(new_tokens, skip_special_tokens=True)
         decoded_output = decoded_outputs[0]
 
         confidence = np.round(float(max(torch.softmax(model_outputs.scores[first_output_token_idx].squeeze(), dim=0))), 2)
+        save_cached_result(
+            img_path=img_path,
+            meta_path=meta_path,
+            original_img=image,
+            overlay_img=rescaled_avg_attn_weights,
+            decoded_output=decoded_output,
+            confidence=confidence,
+            meta_extra={
+                "split": split,
+                "method": method,
+                "image_key": image_key,
+                "params": _canonicalize_params(params),
+            }
+        )
 
-        return str(out_path), decoded_output, confidence
+        return str(img_path), decoded_output, confidence
 
 
 # -----------------------------
