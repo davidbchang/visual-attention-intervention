@@ -23,6 +23,7 @@ from visual_attention_intervention.utils import (
 )
 
 if Path("/data").exists():
+    import os
     os.environ.setdefault("HF_HOME", "/data/.huggingface")
 
 torch.manual_seed(42)
@@ -38,6 +39,8 @@ IMAGES_BASE_DIR = Path("data/vsr/demo_images")
 PREDICTIONS_FILENAME = "predictions.json"
 DEMO_INDICES_RANDOM = {643, 1030, 655, 1070, 687, 818, 53, 445, 960, 961, 1090, 452, 710, 199, 968, 213, 731, 606, 112, 368, 627, 885, 375, 1017}
 DEMO_INDICES_ZEROSHOT = {10, 15, 144, 17, 21, 278, 23, 25, 28, 293, 173, 54, 62, 64, 70, 198, 199, 202, 91, 224, 98, 102, 104, 109, 241, 251}
+VEA_BEST_LAYERS_IDXES_RANDOM = [17, 20, 24]
+VEA_BEST_LAYERS_IDXES_ZEROSHOT = [17, 20, 10]
 
 MODEL_PATHS = {
     "random": "modeling/Qwen3-VL-2B-Instruct_causal-lm_freeze-vision_vsr_b4x16_2e-05_e3_random-train-7680/checkpoint-260",
@@ -50,16 +53,16 @@ MODEL_REPOS = {
 
 HEATMAP_DIRS = {
     "random": {
-        "standard": f"{MODEL_PATHS["random"]}/results/random/dev/method-standard/visualizations/heatmaps",
-        "adaptvis": f"{MODEL_PATHS["random"]}/results/random/dev/method-adaptvis_threshold-0.8_sharpen-weight-1.2_smoothen-weight-0.2/visualizations/heatmaps",
-        "vea": f"{MODEL_PATHS["random"]}/results/random/dev/method-vea_smooth-strength-0.5_highlight-strength-0.5/visualizations/heatmaps",
-        "clvs": f"{MODEL_PATHS["random"]}/results/random/dev/method-clvs_smoothing-0.8_window-memory-size-0.8_uncertainty-threshold-0.5/visualizations/heatmaps",
+        "standard": f"{MODEL_PATHS["random"]}/results/random/dev/method-standard/visualizations/demo_heatmaps",
+        "adaptvis": f"{MODEL_PATHS["random"]}/results/random/dev/method-adaptvis_threshold-0.8_sharpen-weight-1.2_smoothen-weight-0.2/visualizations/demo_heatmaps",
+        "vea": f"{MODEL_PATHS["random"]}/results/random/dev/method-vea_smooth-strength-0.5_highlight-strength-0.5/visualizations/demo_heatmaps",
+        "clvs": f"{MODEL_PATHS["random"]}/results/random/dev/method-clvs_smoothing-0.8_window-memory-size-0.8_uncertainty-threshold-0.5/visualizations/demo_heatmaps",
     },
     "zeroshot": {
-        "standard": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-standard/visualizations/heatmaps",
-        "adaptvis": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-adaptvis_threshold-0.8_sharpen-weight-1.2_smoothen-weight-0.1/visualizations/heatmaps",
-        "vea": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-vea_smooth-strength-0.8_highlight-strength-0.2/visualizations/heatmaps",
-        "clvs": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-clvs_smoothing-0.7_window-memory-size-0.8_uncertainty-threshold-0.5/visualizations/heatmaps",
+        "standard": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-standard/visualizations/demo_heatmaps",
+        "adaptvis": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-adaptvis_threshold-0.8_sharpen-weight-1.2_smoothen-weight-0.1/visualizations/demo_heatmaps",
+        "vea": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-vea_smooth-strength-0.8_highlight-strength-0.2/visualizations/demo_heatmaps",
+        "clvs": f"{MODEL_PATHS["zeroshot"]}/results/zeroshot/dev/method-clvs_smoothing-0.7_window-memory-size-0.8_uncertainty-threshold-0.5/visualizations/demo_heatmaps",
     },
 }
 
@@ -453,6 +456,7 @@ def get_vea_outputs(
     model: Qwen3VLForConditionalGeneration,
     processor: AutoProcessor,
     encodings: dict[str, torch.Tensor],
+    best_layers_idxes: list[int],
     params: dict[str, float],
 ):
     patch_size = model.config.vision_config.patch_size
@@ -473,7 +477,6 @@ def get_vea_outputs(
     first_output_token_idx = 0
 
     # Attention Extraction
-    best_layers_idxes = params["best_layers_idxes"]
     evidence_scores = sum(
         [
             model_outputs.attentions[first_output_token_idx][
@@ -641,8 +644,8 @@ def generate_custom_heatmap_overlay(
                 model, encodings, standard_method_confidence, params
             )
         elif method == "vea":
-            params["best_layers_idxes"] = []
-            model_outputs = get_vea_outputs(model, processor, encodings, params)
+            best_layers_idxes = VEA_BEST_LAYERS_IDXES_RANDOM if split == "random" else VEA_BEST_LAYERS_IDXES_ZEROSHOT
+            model_outputs = get_vea_outputs(model, processor, encodings, best_layers_idxes, params)
         elif method == "clvs":
             model_outputs = get_clvs_outputs(model, encodings, params)
         else:
